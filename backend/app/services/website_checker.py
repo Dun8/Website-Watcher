@@ -1,7 +1,8 @@
 import httpx
 from bs4 import BeautifulSoup
 import hashlib
-from ..database.repositories.websites import db_new_check
+from ..database.repositories.websites import db_new_check, db_get_url_and_css_selector, db_get_old_hash
+
 def fetch_page(url):
     response = httpx.get(url, timeout=10, follow_redirects=True)
     response.raise_for_status()
@@ -35,5 +36,31 @@ def get_website_content(url, css_selector=None):
 
     return {"status_code": response.status_code, "content": text}
 
+def check_hash(website_id):
+    try:
+        website = db_get_url_and_css_selector(website_id)
+
+        if website is None:
+            raise ValueError("Сайт не найден")
+
+        url, css_selector = website
+
+        page = get_website_content(url, css_selector)
+        status_code = page["status_code"]
+        content = page["content"]
+        new_hash = hashlib.sha256(content.encode()).hexdigest()
+        old_hash = db_get_old_hash(website_id)
+
+        if old_hash is None:
+            db_new_check(website_id, status_code, new_hash, None, None)
+            return {"website_id": website_id, "status_code": status_code, "has_changed": None, "error_message": None}
+        elif new_hash != old_hash:
+            db_new_check(website_id, status_code, new_hash, True, None)
+            return {"website_id": website_id, "status_code": status_code, "has_changed": True, "error_message": None}
+        else:
+            db_new_check(website_id, status_code, new_hash, False, None)
+            return {"website_id": website_id, "status_code": status_code, "has_changed": False, "error_message": None}
+    except Exception:
+        raise
 
 
