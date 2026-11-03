@@ -2,6 +2,7 @@ import httpx
 from bs4 import BeautifulSoup
 import hashlib
 from ..database.repositories.websites import db_new_check, db_get_url_and_css_selector, db_get_old_hash
+from .telegram_notifier import send_telegram_message
 
 def fetch_page(url):
     response = httpx.get(url, timeout=10, follow_redirects=True)
@@ -56,6 +57,15 @@ def check_hash(website_id):
             return {"website_id": website_id, "status_code": status_code, "has_changed": None, "error_message": None}
         elif new_hash != old_hash:
             db_new_check(website_id, status_code, new_hash, True, None)
+
+            try:
+                result = send_telegram_message(f"Website Watcher\n\nОбнаружено изменение на сайте\nURL: {url}\nHTTP-статус: {status_code}\nID сайта: {website_id}")
+
+                if result != "success":
+                    print(f"Ошибка отправки Telegram: {result}")
+            except Exception:
+                print("Ошибка отправки Telegram")
+
             return {"website_id": website_id, "status_code": status_code, "has_changed": True, "error_message": None}
         else:
             db_new_check(website_id, status_code, new_hash, False, None)
