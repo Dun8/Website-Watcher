@@ -1,10 +1,19 @@
 from ..database.repositories.websites import (db_health, db_new_website, db_get_all_websites, db_change_css_selector, db_change_name,
                                               db_change_is_active, db_change_check_interval_minutes, db_check_website)
-import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status
 from ..schemas import websites
+from ..services.website_scheduler import scheduler
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app):
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
@@ -70,7 +79,3 @@ def update_website(website_id: int, data: websites.WebsiteUpdate):
 
 
 from .check import check_website, check_website_history
-
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

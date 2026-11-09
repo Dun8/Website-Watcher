@@ -36,7 +36,8 @@ def check_website_history(website_id: int):
         res = []
 
         for check in history:
-            res.append({"id": check[0], "website_id": check[1], "checked_at": check[2], "has_changed": check[3]})
+            res.append({"id": check[0], "website_id": check[1], "checked_at": check[2], "status_code": check[3], "content_hash": check[4],
+                        "has_changed": check[5], "error_message": check[6]})
 
         return res
 

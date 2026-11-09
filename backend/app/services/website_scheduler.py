@@ -1,4 +1,5 @@
 import datetime
+import psycopg2
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from ..database.repositories.websites import db_get_all_websites, db_get_last_checked, db_new_check
@@ -20,8 +21,14 @@ def check_due_websites():
         if last_checked is None or datetime.datetime.now(datetime.timezone.utc) - last_checked >= datetime.timedelta(minutes=inf[3]):
             try:
                 check_hash(inf[0])
+            except psycopg2.Error:
+                print(f"Ошибка базы данных при проверке сайта {inf[0]}")
             except Exception as error:
-                db_new_check(inf[0], None, None, None, str(error))
+                try:
+                    db_new_check(inf[0], None, None, None, str(error))
+                except Exception:
+                    print(f"Не удалось сохранить ошибку проверки сайта {inf[0]}")
+
                 print(f"Ошибка проверки сайта {inf[0]}: {error}")
 
 

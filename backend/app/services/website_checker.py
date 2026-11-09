@@ -1,6 +1,8 @@
 import httpx
+import psycopg2
 from bs4 import BeautifulSoup
 import hashlib
+import datetime
 from ..database.repositories.websites import db_new_check, db_get_url_and_css_selector, db_get_old_hash
 from .telegram_notifier import send_telegram_message
 
@@ -44,7 +46,7 @@ def check_hash(website_id):
         if website is None:
             raise ValueError("Сайт не найден")
 
-        url, css_selector = website
+        url, css_selector, name = website
 
         page = get_website_content(url, css_selector)
         status_code = page["status_code"]
@@ -59,7 +61,7 @@ def check_hash(website_id):
             db_new_check(website_id, status_code, new_hash, True, None)
 
             try:
-                result = send_telegram_message(f"Website Watcher\n\nОбнаружено изменение на сайте\nURL: {url}\nHTTP-статус: {status_code}\nID сайта: {website_id}")
+                result = send_telegram_message(f"Обнаружено изменение на сайте\n\nСайт: {name}\nURL: {url}\nВремя проверки: {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC")
 
                 if result != "success":
                     print(f"Ошибка отправки Telegram: {result}")
@@ -70,8 +72,18 @@ def check_hash(website_id):
         else:
             db_new_check(website_id, status_code, new_hash, False, None)
             return {"website_id": website_id, "status_code": status_code, "has_changed": False, "error_message": None}
-    except Exception:
+    except psycopg2.Error:
         raise
+    except Exception as error:
+        status_code = None
+
+        if isinstance(error, httpx.HTTPStatusError):
+            status_code = error.response.status_code
+
+        error_message = str(error) or type(error).__name__
+        db_new_check(website_id, status_code, None, None, error_message)
+        print(f"Ошибка проверки сайта {website_id}: {error_message}")
+        return {"website_id": website_id, "status_code": status_code, "has_changed": None, "error_message": error_message}
 
 
 

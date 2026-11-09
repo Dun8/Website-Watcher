@@ -62,13 +62,13 @@ def db_get_url_and_css_selector(website_id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT url, css_selector FROM websites WHERE id = %s", (website_id, ))
+        cursor.execute("SELECT url, css_selector, name FROM websites WHERE id = %s", (website_id, ))
         res = cursor.fetchone()
 
         if res is None:
             return None
 
-        return res[0], res[1]
+        return res[0], res[1], res[2]
     finally:
         conn.close()
 
@@ -124,7 +124,7 @@ def db_get_check_history(website_id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT id, website_id, checked_at, has_changed FROM website_checks WHERE website_id = %s ORDER BY checked_at DESC, id DESC", (website_id, ))
+        cursor.execute("SELECT id, website_id, checked_at, status_code, content_hash, has_changed, error_message FROM website_checks WHERE website_id = %s ORDER BY checked_at DESC, id DESC", (website_id, ))
         res = cursor.fetchall()
         return res
     finally:
